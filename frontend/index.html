@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="AttackDNA — turn any CVE into an interactive, AI-generated attack chain mapped to MITRE ATT&CK.">
+  <meta name="theme-color" content="#070a13">
+  <title>AttackDNA — CVE Attack Chain Visualizer</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <!-- ===== HEADER ===== -->
+  <header class="topbar">
+    <a class="brand" href="#" id="brand-link" aria-label="AttackDNA home">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <defs>
+          <linearGradient id="bm-g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#a78bfa"/>
+          </linearGradient>
+        </defs>
+        <rect width="32" height="32" rx="9" fill="url(#bm-g)"/>
+        <path d="M11 6c0 6 10 8 10 14s-10 4-10 6M21 6c0 6-10 8-10 14s10 4 10 6" stroke="#06121c" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+        <path d="M12.5 10h7M12.5 22h7M14 16h4" stroke="#06121c" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-text">Attack<span>DNA</span></span>
+    </a>
+
+    <form class="search search--compact" id="header-search" role="search" autocomplete="off">
+      <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input class="search__input" type="text" name="q" placeholder="CVE-2024-3400 or keyword…" spellcheck="false" aria-label="Search CVE or keyword">
+      <kbd class="search__kbd">/</kbd>
+      <button class="btn btn--primary search__btn" type="submit">Analyze</button>
+      <div class="search__results" role="listbox" hidden></div>
+    </form>
+
+    <div class="status-pill" id="status-pill" title="Backend status">
+      <span class="status-pill__dot"></span><span class="status-pill__text">Connecting…</span>
+    </div>
+  </header>
+
+  <!-- ===== LANDING ===== -->
+  <section class="hero" id="hero">
+    <div class="hero__badge"><span class="pulse-dot"></span> NVD + Claude AI + MITRE ATT&amp;CK</div>
+    <h1 class="hero__title">Decode the <span class="gradient-text">DNA</span><br>of an attack.</h1>
+    <p class="hero__sub">Turn any CVE into an interactive attack chain — see how an adversary moves from first scan to final impact, and exactly where defenders can break the chain.</p>
+
+    <form class="search search--hero" id="hero-search" role="search" autocomplete="off">
+      <svg class="search__icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input class="search__input" type="text" name="q" placeholder="Enter a CVE ID or search by keyword (e.g. log4j)" spellcheck="false" aria-label="Search CVE or keyword">
+      <button class="btn btn--primary search__btn" type="submit">
+        Analyze
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+      <div class="search__results" role="listbox" hidden></div>
+    </form>
+
+    <div class="hero__examples">
+      <span class="hero__examples-label">Try a famous one</span>
+      <div class="chips" id="example-chips"></div>
+    </div>
+
+    <div class="features">
+      <article class="feature">
+        <div class="feature__icon feature__icon--cyan"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="12" r="2.5"/><circle cx="6" cy="18" r="2.5"/><path d="M8.3 7.2 15.7 10.8M8.3 16.8l7.4-3.6"/></svg></div>
+        <h3>Interactive attack graph</h3>
+        <p>Every phase mapped to a real MITRE ATT&amp;CK technique, laid out in kill-chain order you can drag, zoom and explore.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__icon feature__icon--green"><svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <h3>Defender view</h3>
+        <p>Flip perspectives to reveal concrete detection points — where your SOC can spot and stop each step.</p>
+      </article>
+      <article class="feature">
+        <div class="feature__icon feature__icon--violet"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16"/><path d="m7 15 4-4 3 3 5-6"/></svg></div>
+        <h3>Exec-ready summary</h3>
+        <p>A one-line CEO briefing, attack narrative, industries at risk and the recommended patch — all in one place.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===== DASHBOARD ===== -->
+  <main class="dashboard" id="dashboard" hidden>
+    <!-- Summary strip -->
+    <section class="summary card" id="summary"></section>
+
+    <div class="workspace">
+      <!-- Left: details -->
+      <aside class="details card">
+        <div class="tabs" role="tablist">
+          <button class="tab is-active" role="tab" data-tab="overview" aria-selected="true">Overview</button>
+          <button class="tab" role="tab" data-tab="narrative" aria-selected="false">Narrative</button>
+          <button class="tab" role="tab" data-tab="refs" aria-selected="false">References</button>
+        </div>
+        <div class="tab-panels" id="tab-panels"></div>
+      </aside>
+
+      <!-- Right: graph -->
+      <section class="graph card" id="graph-card">
+        <div class="graph__toolbar">
+          <div class="segmented" id="view-toggle" role="group" aria-label="Perspective">
+            <button class="is-active" data-view="attacker">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/></svg>
+              Attacker
+            </button>
+            <button data-view="defender">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6l-8-3Z"/></svg>
+              Defender
+            </button>
+          </div>
+          <div class="graph__actions">
+            <button class="icon-btn" id="zoom-in" title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+            <button class="icon-btn" id="zoom-out" title="Zoom out" aria-label="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+            <button class="icon-btn" id="zoom-fit" title="Fit to view" aria-label="Fit to view"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+            <span class="divider"></span>
+            <button class="icon-btn" id="export-png" title="Export PNG" aria-label="Export graph as PNG"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
+          </div>
+        </div>
+        <div class="graph__legend" id="graph-legend"></div>
+        <svg id="graph-svg" role="img" aria-label="Attack chain graph"></svg>
+        <div class="graph__hint">Drag nodes · Scroll to zoom · Click a phase for details</div>
+      </section>
+    </div>
+
+    <!-- Kill chain timeline -->
+    <section class="timeline card">
+      <div class="section-head">
+        <h2>Kill chain</h2>
+        <span class="muted" id="timeline-count"></span>
+      </div>
+      <ol class="timeline__track" id="timeline"></ol>
+    </section>
+  </main>
+
+  <!-- ===== PHASE DRAWER ===== -->
+  <div class="drawer-backdrop" id="drawer-backdrop" hidden></div>
+  <aside class="drawer" id="drawer" aria-hidden="true" aria-labelledby="drawer-title" role="dialog">
+    <button class="icon-btn drawer__close" id="drawer-close" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <div id="drawer-body"></div>
+  </aside>
+
+  <!-- ===== LOADING ===== -->
+  <div class="loader" id="loader" hidden>
+    <div class="loader__card">
+      <div class="helix" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <h3 class="loader__title" id="loader-title">Analyzing…</h3>
+      <ul class="loader__steps" id="loader-steps">
+        <li data-step="0">Fetching vulnerability record from NVD</li>
+        <li data-step="1">Mapping techniques to MITRE ATT&amp;CK</li>
+        <li data-step="2">Generating attack chain with Claude</li>
+        <li data-step="3">Rendering interactive graph</li>
+      </ul>
+      <p class="loader__note">AI analysis usually takes 15–60 seconds.</p>
+    </div>
+  </div>
+
+  <!-- ===== TOASTS ===== -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <footer class="footer">
+    <span>AttackDNA · For education and authorized security research only.</span>
+    <span>Data: <a href="https://nvd.nist.gov/" target="_blank" rel="noopener">NVD</a> · <a href="https://attack.mitre.org/" target="_blank" rel="noopener">MITRE ATT&amp;CK</a></span>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>

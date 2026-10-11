@@ -1,0 +1,19 @@
+{
+  "name": "attackdna",
+  "version": "1.1.0",
+  "description": "CVE Attack Chain Visualizer — AI-powered vulnerability kill chain modeling",
+  "scripts": {
+    "dev": "python backend/app.py",
+    "start": "python backend/app.py"
+  },
+  "keywords": [
+    "cve",
+    "attack-chain",
+    "mitre-attack",
+    "cybersecurity",
+    "d3",
+    "nvd"
+  ],
+  "author": "",
+  "license": "MIT"
+}
